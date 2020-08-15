@@ -77,7 +77,8 @@ data AnyList where
 
 concatAnyList :: AnyList -> AnyList -> AnyList
 concatAnyList AnyNil ys = ys
-concatAnyList (AnyCons x xs) ys = AnyCons x (concatAnyList xs ys) 
+concatAnyList (AnyCons x xs) ys = AnyCons x (concatAnyList xs ys)
+
 reverseAnyList :: AnyList -> AnyList
 reverseAnyList =
   \case
@@ -254,6 +255,18 @@ instance PeelLayer Int () where
 peelLayer :: PeelLayer a b => MysteryBox a -> MysteryBox b
 peelLayer = peel
 
+-- THIS IS SUPER COOL
+-- You use GADT to encode a relationship between a and b
+data Layer a b where -- We can use a GADT to encode the layers...
+  Int'    :: Layer Int ()
+  String' :: Layer String Int
+  Bool'   :: Layer Bool String
+
+-- And now we can write this function:
+unpeel :: Layer a b -> MysteryBox a -> MysteryBox b
+unpeel Int'    (IntBox    _ xs) = xs
+unpeel String' (StringBox _ xs) = xs
+unpeel Bool'   (BoolBox   _ xs) = xs
 
 
 {- SIX -}
@@ -287,7 +300,7 @@ patternMatchMe = error "I don't think this is possible."
 -- | c. Can you write a function that appends one 'HList' to the end of
 -- another? What problems do you run into?
 
-class Append l r result | l r -> result where --, l result -> r, r result -> l where
+class Append l r result | l r -> result where
   append :: HList l -> HList r -> HList result
 
 instance Append () r r where
@@ -419,7 +432,7 @@ codeGolf list =
 
 data Expr a where
   Fun       :: (a -> b)                         -> Expr (a -> b)
-  Apply     :: Expr (a -> b) -> Expr a          -> Expr b
+  Apply     :: Expr (a -> Expr b) -> Expr a     -> Expr b
   Equals    :: Expr Int  -> Expr Int            -> Expr Bool
   Add       :: Expr Int  -> Expr Int            -> Expr Int
   If        :: Expr Bool -> Expr a   -> Expr a  -> Expr a
@@ -436,11 +449,11 @@ eval =
         If cond a b -> if eval cond then eval a else eval b
         IntValue i  -> i
         BoolValue b -> b
-        Apply f x   -> eval f (eval x)
+        Apply f x   -> eval $ eval f (eval x)
         Fun f       -> f
 
 expr :: Expr Int
-expr = Apply (Fun (+1)) (IntValue 1)
+expr = Apply (Fun (IntValue . (+1))) (IntValue 1)
 
 -- | b. Here's an "untyped" expression language. Implement a parser from this
 -- into our well-typed language. Note that (until we cover higher-rank
