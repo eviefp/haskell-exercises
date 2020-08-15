@@ -136,6 +136,8 @@ example2 = show (ShowCons "Tom" (ShowCons 25 (ShowCons True ShowNil)))
 -- showListHead :: Show a => ShowList -> Maybe a
 -- showListHead  ShowNil          = Nothing
 -- showListHead (ShowCons head _) = Just head
+-- The caller determines the type of 'a', but that's not possible because the
+-- type has already been determined before (and it's unknowable).
 
 {-
   Uncomment the above function - can you see why it doesn't work?
