@@ -1,4 +1,7 @@
-{-# LANGUAGE GADTs #-}
+{-# LANGUAGE ExplicitForAll #-}
+{-# LANGUAGE GADTs          #-}
+{-# LANGUAGE RankNTypes     #-}
+
 module Exercises where
 
 
@@ -17,27 +20,31 @@ instance Countable Bool where count x = if x then 1 else 0
 -- things.
 
 data CountableList where
-  -- ...
+  Nil  :: CountableList
+  Cons :: forall a. Countable a => a -> CountableList -> CountableList
 
 
 -- | b. Write a function that takes the sum of all members of a 'CountableList'
 -- once they have been 'count'ed.
 
 countList :: CountableList -> Int
-countList = error "Implement me!"
+countList Nil        = 0
+countList (Cons a b) = count a + countList b
 
 
 -- | c. Write a function that removes all elements whose count is 0.
 
 dropZero :: CountableList -> CountableList
-dropZero = error "Implement me!"
+dropZero Nil = Nil
+dropZero (Cons a b)
+  | count a == 0 = dropZero b
+  | otherwise = Cons a (dropZero b)
 
 
 -- | d. Can we write a function that removes all the things in the list of type
 -- 'Int'? If not, why not?
 
-filterInts :: CountableList -> CountableList
-filterInts = error "Contemplate me!"
+-- NO
 
 
 
@@ -48,27 +55,42 @@ filterInts = error "Contemplate me!"
 -- | a. Write a list that can take /any/ type, without any constraints.
 
 data AnyList where
-  -- ...
+  ANil  :: AnyList
+  ACons :: a -> AnyList -> AnyList
 
 -- | b. How many of the following functions can we implement for an 'AnyList'?
 
-reverseAnyList :: AnyList -> AnyList
-reverseAnyList = undefined
+concatAnyList :: AnyList -> AnyList -> AnyList
+concatAnyList ANil ys         = ys
+concatAnyList (ACons x xs) ys = ACons x (concatAnyList xs ys)
 
-filterAnyList :: (a -> Bool) -> AnyList -> AnyList
-filterAnyList = undefined
+reverseAnyList :: AnyList -> AnyList
+reverseAnyList ANil        = ANil
+reverseAnyList (ACons a b) = concatAnyList (reverseAnyList b) (ACons a ANil)
+
+-- We can only pass "const true" or "const false"
+filterAnyList :: (forall a. a -> Bool) -> AnyList -> AnyList
+filterAnyList _ ANil = ANil
+filterAnyList f (ACons x xs)
+  | f x = ACons x (filterAnyList f xs)
+  | otherwise = filterAnyList f xs
 
 lengthAnyList :: AnyList -> Int
-lengthAnyList = undefined
+lengthAnyList ANil         = 0
+lengthAnyList (ACons _ xs) = 1 + lengthAnyList xs
 
-foldAnyList :: Monoid m => AnyList -> m
-foldAnyList = undefined
+-- foldAnyList :: (Monoid m, Read m) => AnyList -> m
+-- foldAnyList ANil = mempty
+-- foldAnyList (ACons x xs) = read (showList x) <> foldAnyList xs
+-- NO
 
 isEmptyAnyList :: AnyList -> Bool
-isEmptyAnyList = undefined
+isEmptyAnyList ANil = True
+isEmptyAnyList _    = False
 
 instance Show AnyList where
-  show = error "What about me?"
+  show ANil         = "[]"
+  show (ACons _ xs) = "." <> show xs
 
 
 
@@ -97,12 +119,20 @@ transformable2 = TransformWith (uncurry (++)) ("Hello,", " world!")
 
 -- | b. Could we write an 'Eq' instance for 'TransformableTo'? What would we be
 -- able to check?
+--
+instance Eq output => Eq (TransformableTo output) where
+    TransformWith f x == TransformWith g y = f x == g y
 
 -- | c. Could we write a 'Functor' instance for 'TransformableTo'? If so, write
 -- it. If not, why not?
 
+instance Functor TransformableTo where
+    fmap f (TransformWith g y) = TransformWith (f . g) y
 
+extract :: TransformableTo output -> output
+extract (TransformWith f x) = f x
 
+extend :: TransformableTo output -> (TransformableTo (TransformableTo output))
 
 
 {- FOUR -}

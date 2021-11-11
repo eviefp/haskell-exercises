@@ -4,8 +4,6 @@ module {- 1, in which we'll cover -} GADTs {- in isolation. This is very basic,
 and we'll see -} where {- they really shine when we come to things like
 ConstraintKinds and DataKinds. -}
 
----
-
 {-
   In standard Haskell, we have the notion of a homogeneous list. That is to
   say, a list in which all the values are of the same type:
@@ -55,6 +53,24 @@ example1 = show (Cons 2 (Cons 3 Nil))
   ShowNil  :: ShowList
   ShowCons :: Show a => a -> ShowList -> ShowList
 
+  data Showable' a = Show a => Showable' a
+
+  showable' :: Showable' Int
+  showable' = Showable' 5
+
+-- existential quantification
+  data Showable = forall a. Show a => Showable a
+  data Showable = Showable (forall a. Show a => a)
+
+  showable :: Showable
+  showable = Showable 'a'
+
+  showableList :: [Showable]
+  showableList = [Showable "1", Showable 1]
+
+  printShowable :: Showable -> IO ()
+  printShowable (Showable x) = print x
+
   Notice here that we've broken both of the above rules:
 
   - We mention a variable, @a@, that doesn't exist in the result type,
@@ -72,6 +88,12 @@ example1 = show (Cons 2 (Cons 3 Nil))
 data ShowList where
   ShowNil  :: ShowList
   ShowCons :: Show a => a -> ShowList -> ShowList
+
+nil :: ShowList
+showCons :: Show a => a -> ShowList -> ShowList
+
+newtype ShowList = ShowList String
+
 
 {-
   Notice here that we've written /exactly/ the functions we wanted. We've said
@@ -100,9 +122,65 @@ instance Show ShowList where
   as our type has a 'Show' instance, we can add it to the list:
 -}
 
+showlist :: ShowList
+showlist = ShowCons "Tom" (ShowCons 25 (ShowCons True ShowNil)))
+--        This is the "do you like dogs?" flag :) ^
+
 example2 :: String
-example2 = show (ShowCons "Tom" (ShowCons 25 (ShowCons True ShowNil)))
---              This is the "do you like dogs?" flag :) ^
+example2 = show showlist
+
+"dictionary passing" = "record passing"
+
+class Show a where
+  show :: a -> String
+
+data ShowDict a = ShowDict { show :: a -> String }
+
+printBoth :: (Show a, Show b) => a -> b -> String
+printBoth a b = show a ++ "; " ++ show b
+
+printBoth :: ShowDict a -> ShowDict b -> a -> b -> String
+printBoth sa sb a b = show sa a ++ "; " ++ show sb b
+
+data Showable = forall a. Show a => Showable a
+
+data Showable where
+  Showable :: Show a => a -> Showable
+
+  Showable :: ShowDict a -> a -> Showable
+
+printBoth :: ShowDict a -> ShowDict b -> a -> b -> String
+printBoth sa sb a b = show sa a ++ "; " ++ show sb b
+
+id :: forall a. a -> a
+id x = x
+
+data Maybe a = Nothing | Just a
+data Maybe a where
+    Nothing :: Maybe a
+    Just :: a -> Maybe a
+
+Nothing :: forall a. Maybe a
+Just :: forall a. a -> Maybe a
+
+-- this is not universal quantification!
+data Showable = forall a. Show a => Showable a
+
+-- it's existential quantification: there is _some_ value of type a inside here
+data OneShow = forall a. Show a => OneShow (a -> String)
+
+data OneShow     = MkOneShow     (exists a. Show a => a -> String)
+
+showInt :: Int -> String
+showInt = show
+
+oneShow1 :: OneShow
+oneShow1 = MkOneShow showInt
+
+data GeneralShow = MkGeneralShow (forall a. Show a => a -> String)
+
+generalShow :: GeneralShow
+generalShow = MkGeneralShow show
 
 {-
   This time, we get "\"Tom\" : 25 : True : []". All our types are different, but
